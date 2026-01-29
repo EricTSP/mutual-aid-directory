@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Idaho 50501 — Mutual Aid Directory</title>
+  <style>
+    :root{
+      --p:#28316c; --d:#032053; --a:#d32729;
+      --t:#101425; --b:rgba(3,32,83,.15);
+      --r:18px; --sh:0 8px 20px rgba(3,32,83,.08);
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    }
+    body{margin:0;background:#fff;color:var(--t);font-family:inherit;}
+    .wrap{max-width:980px;margin:0 auto;padding:14px 14px 44px;}
+    .card{background:#fff;border:1px solid var(--b);border-radius:var(--r);box-shadow:var(--sh);padding:16px;}
+    .head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+    .brand{display:flex;gap:12px;align-items:center;}
+    .mark{width:44px;height:44px;border-radius:14px;background:radial-gradient(circle at 30% 30%, var(--a), var(--p));
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.6);}
+    h2{margin:0;font-size:18px;line-height:1.2;color:var(--d);}
+    .sub{margin:4px 0 0;font-size:13px;opacity:.85;}
+    .status{font-size:12px;padding:6px 10px;border-radius:12px;background:rgba(3,32,83,.06);border:1px solid var(--b);}
+    .searchRow{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    input[type="search"]{flex:1;min-width:260px;height:44px;border-radius:14px;border:1px solid var(--b);padding:0 14px;outline:none;background:#fff;}
+    .btn{height:44px;border-radius:14px;border:1px solid var(--b);padding:0 14px;cursor:pointer;font-weight:800;background:var(--p);color:#fff;box-shadow:var(--sh);}
+    .btn.secondary{background:#fff;color:var(--p);}
+    .hint{margin-top:10px;font-size:13px;opacity:.85;}
+    .hint code{background:rgba(40,49,108,.06);border:1px solid var(--b);padding:2px 6px;border-radius:8px;}
+    .results{margin-top:12px;border:1px solid var(--b);border-radius:var(--r);overflow:hidden;background:#fff;box-shadow:var(--sh);}
+    .row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:12px 14px;border-top:1px solid rgba(3,32,83,.08);cursor:pointer;}
+    .row:first-child{border-top:none;}
+    .row:hover{background:rgba(40,49,108,.04);}
+    .row .left{min-width:0;}
+    .row .title{margin:0;font-size:14px;font-weight:900;color:var(--d);line-height:1.25;}
+    .row .meta{margin-top:4px;font-size:12px;opacity:.85;display:flex;gap:8px;flex-wrap:wrap;}
+    .pill{font-size:11px;padding:4px 8px;border-radius:999px;border:1px solid var(--b);background:rgba(40,49,108,.06);color:var(--d);font-weight:800;}
+    .pill.red{background:rgba(211,39,41,.10);border-color:rgba(211,39,41,.25);color:#7f0d10;}
+    .empty{margin-top:12px;padding:14px;border:1px dashed var(--b);border-radius:var(--r);background:rgba(40,49,108,.03);font-size:13px;opacity:.9;}
+    .detail{margin-top:14px;border:1px solid var(--b);border-radius:var(--r);background:#fff;box-shadow:var(--sh);padding:14px;}
+    .detailHead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;}
+    .detailTitle{margin:0;font-size:16px;font-weight:950;color:var(--d);line-height:1.25;}
+    .detailActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .kv{margin-top:10px;display:grid;grid-template-columns:160px 1fr;gap:8px 10px;font-size:13px;}
+    @media (max-width:640px){.kv{grid-template-columns:1fr;} .kv .k{opacity:.7;font-weight:900;}}
+    .kv .k{opacity:.75;font-weight:900;}
+    .kv .v{white-space:pre-wrap;}
+    a.link{color:var(--a);font-weight:950;text-decoration:none;}
+    a.link:hover{text-decoration:underline;}
+    .err{margin-top:12px;padding:12px 14px;border-radius:var(--r);background:rgba(211,39,41,.10);
+      border:1px solid rgba(211,39,41,.35);color:#7f0d10;font-weight:900;display:none;white-space:pre-wrap;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <div class="brand">
+          <div class="mark" aria-hidden="true"></div>
+          <div>
+            <h2>Idaho 50501 — Mutual Aid Directory</h2>
+            <p class="sub">Type to search. Click a match to view full details.</p>
+          </div>
+        </div>
+        <div class="status" id="status">Loading…</div>
+      </div>
+
+      <div class="searchRow">
+        <input id="q" type="search" disabled placeholder="Loading data… (search will enable)" />
+        <button id="clear" class="btn secondary" type="button">Clear</button>
+      </div>
+
+      <div class="hint">Tips: <code>gofundme</code>, <code>facebook</code>, <code>amazon</code>, <code>tuition</code>, <code>Meridian</code></div>
+      <div id="err" class="err"></div>
+      <div id="resultsWrap"></div>
+      <div id="detailWrap"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const CSV_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRjJ-IVdaW-RCw_YDDbX3nMOiH6weKVWJFw_OX1C24WM9fyPbJYM2NjXGxevIdG6jtx6rpB2xK6tqo/pub?gid=625164440&single=true&output=csv";
+
+  const elStatus = document.getElementById("status");
+  const elQ = document.getElementById("q");
+  const elClear = document.getElementById("clear");
+  const elErr = document.getElementById("err");
+  const elResultsWrap = document.getElementById("resultsWrap");
+  const elDetailWrap = document.getElementById("detailWrap");
+
+  const norm = (s) => (s ?? "").toString().trim();
+  const escapeHtml = (s) => (s ?? "").toString()
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  const normKey = (s) => norm(s).toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+  function setStatus(m){ elStatus.textContent = m; }
+  function showErr(m){ elErr.style.display="block"; elErr.textContent=m; }
+  function clearErr(){ elErr.style.display="none"; elErr.textContent=""; }
+
+  function parseCSV(text){
+    const rows=[]; let row=[], field="", inQ=false;
+    for(let i=0;i<text.length;i++){
+      const c=text[i], n=text[i+1];
+      if(inQ){
+        if(c=='"' && n=='"'){ field+='"'; i++; }
+        else if(c=='"'){ inQ=false; }
+        else field+=c;
+      } else {
+        if(c=='"') inQ=true;
+        else if(c==','){ row.push(field); field=""; }
+        else if(c=='\n'){ row.push(field); field=""; if(row.some(v=>v!=="")) rows.push(row); row=[]; }
+        else if(c!='\r') field+=c;
+      }
+    }
+    row.push(field); if(row.some(v=>v!=="")) rows.push(row);
+    return rows;
+  }
+  function cleanHeader(h){ return norm(h).replace(/^\uFEFF/,"").replace(/\uFEFF/g,"").replace(/\s+/g," "); }
+  function rowsToObjects(csvText){
+    const raw=parseCSV(csvText);
+    const headers=(raw.shift()||[]).map(cleanHeader);
+    return raw.map(r=>{
+      const o={}; headers.forEach((h,i)=>o[h]=r[i]??""); return o;
+    });
+  }
+  function pick(obj, name){
+    const want=name.toLowerCase();
+    for(const k of Object.keys(obj)) if(k.toLowerCase()===want) return obj[k];
+    return "";
+  }
+  function rowFromObj(r){
+    return {
+      Category: pick(r,"Category"),
+      Subcategory: pick(r,"Subcategory"),
+      "Request Type": pick(r,"Request Type"),
+      Title: pick(r,"Title"),
+      Description: pick(r,"Description"),
+      Platform: pick(r,"Platform"),
+      URL: pick(r,"URL"),
+      Contact: pick(r,"Contact"),
+      Notes: pick(r,"Notes")
+    };
+  }
+  function buildBlob(r){
+    const raw=[r.Category,r.Subcategory,r["Request Type"],r.Title,r.Description,r.Platform,r.URL,r.Contact,r.Notes].map(norm).join(" | ");
+    return { rawLower: raw.toLowerCase(), key: normKey(raw) };
+  }
+  function score(qKey, blobKey, blobRawLower, qLower){
+    const pos = blobKey.indexOf(qKey);
+    if(pos === -1) return -1;
+    let s = Math.max(0, 500 - pos);
+    if(pos === 0) s += 250;
+    s += Math.min(200, qKey.length * 8);
+    if(blobRawLower.includes(qLower)) s += 60;
+    return s;
+  }
+
+  let rows=[], idx=[];
+
+  function renderResults(q){
+    const query=norm(q), qKey=normKey(query), qLower=query.toLowerCase();
+    if(!qKey){
+      elResultsWrap.innerHTML = `<div class="empty">Start typing to search the directory.</div>`;
+      elDetailWrap.innerHTML = ``;
+      return;
+    }
+    const matches=[];
+    for(const it of idx){
+      const s=score(qKey,it.blobKey,it.blobRawLower,qLower);
+      if(s>=0) matches.push({idx:it.idx,score:s});
+    }
+    matches.sort((a,b)=>b.score-a.score);
+    const top=matches.slice(0,30);
+    if(top.length===0){
+      elResultsWrap.innerHTML = `<div class="empty">No matches for <strong>${escapeHtml(query)}</strong>.</div>`;
+      elDetailWrap.innerHTML = ``;
+      return;
+    }
+    elResultsWrap.innerHTML = `
+      <div class="results" role="listbox" aria-label="Search results">
+        ${top.map(m=>{
+          const r=rows[m.idx];
+          const pills=[
+            r.Category && `<span class="pill">${escapeHtml(r.Category)}</span>`,
+            r.Subcategory && `<span class="pill">${escapeHtml(r.Subcategory)}</span>`,
+            r["Request Type"] && `<span class="pill red">${escapeHtml(r["Request Type"])}</span>`,
+            r.Platform && `<span class="pill">${escapeHtml(r.Platform)}</span>`
+          ].filter(Boolean).join("");
+          return `
+            <div class="row" role="option" tabindex="0" data-idx="${m.idx}">
+              <div class="left">
+                <p class="title">${escapeHtml(norm(r.Title)||"Untitled")}</p>
+                <div class="meta">${pills}</div>
+              </div>
+              <div style="font-size:11px;opacity:.6;white-space:nowrap;margin-top:2px;">${m.score}</div>
+            </div>`;
+        }).join("")}
+      </div>
+      <div class="hint" style="margin-top:10px;">Showing top ${top.length} matches. Click one to view details.</div>
+    `;
+    elResultsWrap.querySelectorAll(".row").forEach(el=>{
+      const i=parseInt(el.dataset.idx,10);
+      el.addEventListener("click",()=>openDetail(i));
+      el.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openDetail(i); }});
+    });
+  }
+
+  function openDetail(i){
+    const r=rows[i], url=norm(r.URL);
+    const urlHtml = url ? `<a class="link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>` : `<span style="opacity:.7;">—</span>`;
+    const kv=[
+      ["Category", r.Category],
+      ["Subcategory", r.Subcategory],
+      ["Request Type", r["Request Type"]],
+      ["Platform", r.Platform],
+      ["Description", r.Description],
+      ["Contact", r.Contact],
+      ["Notes", r.Notes],
+      ["URL", urlHtml]
+    ];
+    elDetailWrap.innerHTML=`
+      <div class="detail">
+        <div class="detailHead">
+          <div>
+            <p class="detailTitle">${escapeHtml(norm(r.Title)||"Untitled")}</p>
+            <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+              ${r.Category?`<span class="pill">${escapeHtml(r.Category)}</span>`:""}
+              ${r.Subcategory?`<span class="pill">${escapeHtml(r.Subcategory)}</span>`:""}
+              ${r["Request Type"]?`<span class="pill red">${escapeHtml(r["Request Type"])}</span>`:""}
+              ${r.Platform?`<span class="pill">${escapeHtml(r.Platform)}</span>`:""}
+            </div>
+          </div>
+          <div class="detailActions">
+            ${url?`<a class="btn" href="${escapeHtml(url)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;">Open</a>`:""}
+            <button id="closeDetail" class="btn secondary" type="button">Close</button>
+          </div>
+        </div>
+        <div class="kv">
+          ${kv.map(([k,v])=>{
+            const val = (k==="URL") ? v : (escapeHtml(norm(v)) || `<span style="opacity:.7;">—</span>`);
+            return `<div class="k">${escapeHtml(k)}</div><div class="v">${val}</div>`;
+          }).join("")}
+        </div>
+      </div>`;
+    document.getElementById("closeDetail").addEventListener("click",()=>{ elDetailWrap.innerHTML=""; });
+  }
+
+  async function load(){
+    clearErr();
+    setStatus("Loading…");
+    elQ.disabled=true;
+    elResultsWrap.innerHTML=`<div class="empty">Loading directory data…</div>`;
+    elDetailWrap.innerHTML=``;
+
+    try{
+      const res = await fetch(CSV_URL, { cache:"no-store" });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const objs = rowsToObjects(text);
+      rows = objs.map(rowFromObj);
+      if(!rows.some(r=>norm(r.Title))) throw new Error("CSV loaded but expected columns are empty. Check headers.");
+      idx = rows.map((r, i)=>{ const b=buildBlob(r); return { idx:i, blobKey:b.key, blobRawLower:b.rawLower }; });
+
+      setStatus(`Ready • ${rows.length} items`);
+      elQ.disabled=false;
+      elQ.placeholder='Search "gofundme", "facebook", a name, "wishlist", etc.';
+      renderResults("");
+    } catch(e){
+      setStatus("Error");
+      showErr("Couldn’t load data from Google Sheets.\n\nDetails: " + (e?.message||String(e)));
+      elResultsWrap.innerHTML=`<div class="empty">Data not available.</div>`;
+    }
+  }
+
+  let t=null;
+  elQ.addEventListener("input",()=>{ clearTimeout(t); t=setTimeout(()=>renderResults(elQ.value),60); });
+  elClear.addEventListener("click",()=>{ if(elQ.disabled) return; elQ.value=""; renderResults(""); elQ.focus(); });
+
+  load();
+})();
+</script>
+</body>
+</html>
