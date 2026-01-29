@@ -23,6 +23,7 @@
     .status{font-size:12px;padding:6px 10px;border-radius:12px;background:rgba(3,32,83,.06);border:1px solid var(--b);}
     .searchRow{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
     input[type="search"]{flex:1;min-width:260px;height:44px;border-radius:14px;border:1px solid var(--b);padding:0 14px;outline:none;background:#fff;}
+    input[type="search"][disabled]{opacity:.65;background:rgba(3,32,83,.03);}
     .btn{height:44px;border-radius:14px;border:1px solid var(--b);padding:0 14px;cursor:pointer;font-weight:800;background:var(--p);color:#fff;box-shadow:var(--sh);}
     .btn.secondary{background:#fff;color:var(--p);}
     .hint{margin-top:10px;font-size:13px;opacity:.85;}
@@ -79,7 +80,10 @@
 
 <script>
 (() => {
-  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-XXXXX/pub?gid=625164440&single=true&output=csv";  const elStatus = document.getElementById("status");
+  // ✅ Your published Google Sheets CSV (Publish to the web → CSV)
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRjJ-IVdaW-RCw_YDDbX3nMOiH6weKVWJFw_OX1C24WM9fyPbJYM2NjXGxevIdG6jtx6rpB2xK6tqo/pub?gid=625164440&single=true&output=csv";
+
+  const elStatus = document.getElementById("status");
   const elQ = document.getElementById("q");
   const elClear = document.getElementById("clear");
   const elErr = document.getElementById("err");
@@ -141,7 +145,8 @@
     };
   }
   function buildBlob(r){
-    const raw=[r.Category,r.Subcategory,r["Request Type"],r.Title,r.Description,r.Platform,r.URL,r.Contact,r.Notes].map(norm).join(" | ");
+    const raw=[r.Category,r.Subcategory,r["Request Type"],r.Title,r.Description,r.Platform,r.URL,r.Contact,r.Notes]
+      .map(norm).join(" | ");
     return { rawLower: raw.toLowerCase(), key: normKey(raw) };
   }
   function score(qKey, blobKey, blobRawLower, qLower){
@@ -158,11 +163,13 @@
 
   function renderResults(q){
     const query=norm(q), qKey=normKey(query), qLower=query.toLowerCase();
+
     if(!qKey){
       elResultsWrap.innerHTML = `<div class="empty">Start typing to search the directory.</div>`;
       elDetailWrap.innerHTML = ``;
       return;
     }
+
     const matches=[];
     for(const it of idx){
       const s=score(qKey,it.blobKey,it.blobRawLower,qLower);
@@ -170,11 +177,13 @@
     }
     matches.sort((a,b)=>b.score-a.score);
     const top=matches.slice(0,30);
+
     if(top.length===0){
       elResultsWrap.innerHTML = `<div class="empty">No matches for <strong>${escapeHtml(query)}</strong>.</div>`;
       elDetailWrap.innerHTML = ``;
       return;
     }
+
     elResultsWrap.innerHTML = `
       <div class="results" role="listbox" aria-label="Search results">
         ${top.map(m=>{
@@ -197,6 +206,7 @@
       </div>
       <div class="hint" style="margin-top:10px;">Showing top ${top.length} matches. Click one to view details.</div>
     `;
+
     elResultsWrap.querySelectorAll(".row").forEach(el=>{
       const i=parseInt(el.dataset.idx,10);
       el.addEventListener("click",()=>openDetail(i));
@@ -206,7 +216,10 @@
 
   function openDetail(i){
     const r=rows[i], url=norm(r.URL);
-    const urlHtml = url ? `<a class="link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>` : `<span style="opacity:.7;">—</span>`;
+    const urlHtml = url
+      ? `<a class="link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`
+      : `<span style="opacity:.7;">—</span>`;
+
     const kv=[
       ["Category", r.Category],
       ["Subcategory", r.Subcategory],
@@ -217,6 +230,7 @@
       ["Notes", r.Notes],
       ["URL", urlHtml]
     ];
+
     elDetailWrap.innerHTML=`
       <div class="detail">
         <div class="detailHead">
@@ -236,11 +250,14 @@
         </div>
         <div class="kv">
           ${kv.map(([k,v])=>{
-            const val = (k==="URL") ? v : (escapeHtml(norm(v)) || `<span style="opacity:.7;">—</span>`);
+            const val = (k==="URL")
+              ? v
+              : (escapeHtml(norm(v)) || `<span style="opacity:.7;">—</span>`);
             return `<div class="k">${escapeHtml(k)}</div><div class="v">${val}</div>`;
           }).join("")}
         </div>
       </div>`;
+
     document.getElementById("closeDetail").addEventListener("click",()=>{ elDetailWrap.innerHTML=""; });
   }
 
@@ -255,9 +272,14 @@
       const res = await fetch(CSV_URL, { cache:"no-store" });
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
+
       const objs = rowsToObjects(text);
       rows = objs.map(rowFromObj);
-      if(!rows.some(r=>norm(r.Title))) throw new Error("CSV loaded but expected columns are empty. Check headers.");
+
+      if(!rows.some(r=>norm(r.Title) || norm(r.URL) || norm(r.Description))){
+        throw new Error("CSV loaded but expected columns are empty. Check sheet headers match: Title, URL, Platform, etc.");
+      }
+
       idx = rows.map((r, i)=>{ const b=buildBlob(r); return { idx:i, blobKey:b.key, blobRawLower:b.rawLower }; });
 
       setStatus(`Ready • ${rows.length} items`);
