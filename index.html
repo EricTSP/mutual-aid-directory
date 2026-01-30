@@ -3,301 +3,402 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Idaho 50501 — Mutual Aid Directory</title>
+  <title>Idaho 50501 – Mutual Aid Search</title>
   <style>
-    :root{
-      --p:#28316c; --d:#032053; --a:#d32729;
-      --t:#101425; --b:rgba(3,32,83,.15);
-      --r:18px; --sh:0 8px 20px rgba(3,32,83,.08);
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    :root { --bg:#0f1b3d; --card:#ffffff; --muted:#6b7280; --line:#e5e7eb; --pill:#f3f4f6; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: var(--bg); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px 80px; }
+    .card { background: var(--card); border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.18); overflow:hidden; }
+    .header { padding: 18px 18px 10px; border-bottom:1px solid var(--line); }
+    .title { font-size: 22px; font-weight: 800; margin:0; }
+    .sub { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+    .controls { padding: 14px 18px; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+    input[type="search"]{
+      flex: 1 1 420px;
+      border:1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      outline: none;
     }
-    body{margin:0;background:#fff;color:var(--t);font-family:inherit;}
-    .wrap{max-width:980px;margin:0 auto;padding:14px 14px 44px;}
-    .card{background:#fff;border:1px solid var(--b);border-radius:var(--r);box-shadow:var(--sh);padding:16px;}
-    .head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
-    .brand{display:flex;gap:12px;align-items:center;}
-    .mark{width:44px;height:44px;border-radius:14px;background:radial-gradient(circle at 30% 30%, var(--a), var(--p));
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,.6);}
-    h2{margin:0;font-size:18px;line-height:1.2;color:var(--d);}
-    .sub{margin:4px 0 0;font-size:13px;opacity:.85;}
-    .status{font-size:12px;padding:6px 10px;border-radius:12px;background:rgba(3,32,83,.06);border:1px solid var(--b);}
-    .searchRow{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-    input[type="search"]{flex:1;min-width:260px;height:44px;border-radius:14px;border:1px solid var(--b);padding:0 14px;outline:none;background:#fff;}
-    input[type="search"][disabled]{opacity:.65;background:rgba(3,32,83,.03);}
-    .btn{height:44px;border-radius:14px;border:1px solid var(--b);padding:0 14px;cursor:pointer;font-weight:800;background:var(--p);color:#fff;box-shadow:var(--sh);}
-    .btn.secondary{background:#fff;color:var(--p);}
-    .hint{margin-top:10px;font-size:13px;opacity:.85;}
-    .hint code{background:rgba(40,49,108,.06);border:1px solid var(--b);padding:2px 6px;border-radius:8px;}
-    .results{margin-top:12px;border:1px solid var(--b);border-radius:var(--r);overflow:hidden;background:#fff;box-shadow:var(--sh);}
-    .row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:12px 14px;border-top:1px solid rgba(3,32,83,.08);cursor:pointer;}
-    .row:first-child{border-top:none;}
-    .row:hover{background:rgba(40,49,108,.04);}
-    .row .left{min-width:0;}
-    .row .title{margin:0;font-size:14px;font-weight:900;color:var(--d);line-height:1.25;}
-    .row .meta{margin-top:4px;font-size:12px;opacity:.85;display:flex;gap:8px;flex-wrap:wrap;}
-    .pill{font-size:11px;padding:4px 8px;border-radius:999px;border:1px solid var(--b);background:rgba(40,49,108,.06);color:var(--d);font-weight:800;}
-    .pill.red{background:rgba(211,39,41,.10);border-color:rgba(211,39,41,.25);color:#7f0d10;}
-    .empty{margin-top:12px;padding:14px;border:1px dashed var(--b);border-radius:var(--r);background:rgba(40,49,108,.03);font-size:13px;opacity:.9;}
-    .detail{margin-top:14px;border:1px solid var(--b);border-radius:var(--r);background:#fff;box-shadow:var(--sh);padding:14px;}
-    .detailHead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;}
-    .detailTitle{margin:0;font-size:16px;font-weight:950;color:var(--d);line-height:1.25;}
-    .detailActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-    .kv{margin-top:10px;display:grid;grid-template-columns:160px 1fr;gap:8px 10px;font-size:13px;}
-    @media (max-width:640px){.kv{grid-template-columns:1fr;} .kv .k{opacity:.7;font-weight:900;}}
-    .kv .k{opacity:.75;font-weight:900;}
-    .kv .v{white-space:pre-wrap;}
-    a.link{color:var(--a);font-weight:950;text-decoration:none;}
-    a.link:hover{text-decoration:underline;}
-    .err{margin-top:12px;padding:12px 14px;border-radius:var(--r);background:rgba(211,39,41,.10);
-      border:1px solid rgba(211,39,41,.35);color:#7f0d10;font-weight:900;display:none;white-space:pre-wrap;}
+    button{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor:pointer;
+    }
+    button:hover{ background:#fafafa; }
+    .meta { padding: 10px 18px 0; color: var(--muted); font-size: 13px; display:flex; gap:12px; flex-wrap:wrap;}
+    .pill { background: var(--pill); border:1px solid var(--line); padding:6px 10px; border-radius: 999px; }
+    .list { padding: 10px 0; }
+    .row {
+      padding: 12px 18px;
+      border-top:1px solid var(--line);
+      cursor:pointer;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .row:hover { background:#fafafa; }
+    .row:first-child { border-top: none; }
+    .r-main { min-width: 0; }
+    .r-title { font-weight: 700; margin:0; font-size: 16px; }
+    .r-snippet { margin:6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .r-right { flex: 0 0 auto; color: var(--muted); font-size: 12px; display:flex; align-items:center; gap:8px; }
+    .tag { border:1px solid var(--line); background: var(--pill); padding:4px 8px; border-radius: 999px; white-space:nowrap; }
+    .status { padding: 14px 18px; color: var(--muted); font-size: 14px; }
+    .empty { padding: 22px 18px; color: var(--muted); font-size: 14px; }
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.5);
+      display:none; align-items:center; justify-content:center; padding:16px;
+    }
+    .modal {
+      width:min(900px, 100%);
+      background:#fff; border-radius: 16px; overflow:hidden;
+      box-shadow: 0 20px 70px rgba(0,0,0,.35);
+    }
+    .modal-h {
+      padding: 14px 16px; border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .modal-title { margin:0; font-weight: 800; font-size: 16px; }
+    .modal-b { padding: 12px 16px; max-height: 70vh; overflow:auto; }
+    .kv { border-top:1px solid var(--line); padding:10px 0; }
+    .kv:first-child{ border-top:none; }
+    .k { font-size: 12px; color: var(--muted); margin:0 0 4px; }
+    .v { margin:0; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+    .links a { display:inline-block; margin: 6px 8px 0 0; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <div class="head">
-        <div class="brand">
-          <div class="mark" aria-hidden="true"></div>
-          <div>
-            <h2>Idaho 50501 — Mutual Aid Directory</h2>
-            <p class="sub">Type to search. Click a match to view full details.</p>
-          </div>
-        </div>
-        <div class="status" id="status">Loading…</div>
+      <div class="header">
+        <p class="title">Idaho 50501 — Mutual Aid Search</p>
+        <p class="sub">Type keywords (e.g., “Facebook”, “GoFundMe”, “food”, “rent”, “accident”) to find a match.</p>
       </div>
 
-      <div class="searchRow">
-        <input id="q" type="search" disabled placeholder="Loading data… (search will enable)" />
-        <button id="clear" class="btn secondary" type="button">Clear</button>
+      <div class="controls">
+        <input id="q" type="search" placeholder='Search: "facebook", "gofundme", "food assistance", "Meridian"...' autocomplete="off" />
+        <button id="clearBtn" type="button">Clear</button>
       </div>
 
-      <div class="hint">Tips: <code>gofundme</code>, <code>facebook</code>, <code>amazon</code>, <code>tuition</code>, <code>Meridian</code></div>
-      <div id="err" class="err"></div>
-      <div id="resultsWrap"></div>
-      <div id="detailWrap"></div>
+      <div class="meta">
+        <span class="pill" id="loadState">Loading…</span>
+        <span class="pill" id="countState">0 items</span>
+        <span class="pill" id="matchState">0 matches</span>
+      </div>
+
+      <div id="content" class="list">
+        <div class="status" id="status">Fetching the latest directory data…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-h">
+        <p class="modal-title" id="modalTitle">Details</p>
+        <button id="closeBtn" type="button">Close</button>
+      </div>
+      <div class="modal-b" id="modalBody"></div>
     </div>
   </div>
 
 <script>
-(() => {
-  // ✅ Your published Google Sheets CSV (Publish to the web → CSV)
+  // Your published CSV (cache-busted each load so updates show up)
   const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRjJ-IVdaW-RCw_YDDbX3nM0iH6weKVWJFw_OX1C24WM9fyPbJYM2NjXGxevIdG6jtx6rpB2xK6tqo/pub?gid=625164440&single=true&output=csv";
-  const elStatus = document.getElementById("status");
+
   const elQ = document.getElementById("q");
-  const elClear = document.getElementById("clear");
-  const elErr = document.getElementById("err");
-  const elResultsWrap = document.getElementById("resultsWrap");
-  const elDetailWrap = document.getElementById("detailWrap");
+  const elContent = document.getElementById("content");
+  const elStatus = document.getElementById("status");
+  const elLoadState = document.getElementById("loadState");
+  const elCountState = document.getElementById("countState");
+  const elMatchState = document.getElementById("matchState");
+  const elClearBtn = document.getElementById("clearBtn");
 
-  const norm = (s) => (s ?? "").toString().trim();
-  const escapeHtml = (s) => (s ?? "").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
-  const normKey = (s) => norm(s).toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const backdrop = document.getElementById("backdrop");
+  const closeBtn = document.getElementById("closeBtn");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
 
-  function setStatus(m){ elStatus.textContent = m; }
-  function showErr(m){ elErr.style.display="block"; elErr.textContent=m; }
-  function clearErr(){ elErr.style.display="none"; elErr.textContent=""; }
+  let rows = [];        // array of objects
+  let headers = [];     // header names
 
-  function parseCSV(text){
-    const rows=[]; let row=[], field="", inQ=false;
-    for(let i=0;i<text.length;i++){
-      const c=text[i], n=text[i+1];
-      if(inQ){
-        if(c=='"' && n=='"'){ field+='"'; i++; }
-        else if(c=='"'){ inQ=false; }
-        else field+=c;
-      } else {
-        if(c=='"') inQ=true;
-        else if(c==','){ row.push(field); field=""; }
-        else if(c=='\n'){ row.push(field); field=""; if(row.some(v=>v!=="")) rows.push(row); row=[]; }
-        else if(c!='\r') field+=c;
+  // ----- CSV parsing (handles quoted commas/newlines) -----
+  function parseCSV(text) {
+    const out = [];
+    let row = [];
+    let cur = "";
+    let i = 0;
+    let inQuotes = false;
+
+    while (i < text.length) {
+      const c = text[i];
+
+      if (c === '"') {
+        if (inQuotes && text[i + 1] === '"') { cur += '"'; i += 2; continue; } // escaped quote
+        inQuotes = !inQuotes;
+        i++;
+        continue;
       }
+
+      if (!inQuotes && (c === ",")) {
+        row.push(cur); cur = ""; i++; continue;
+      }
+
+      if (!inQuotes && (c === "\n" || c === "\r")) {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(cur); cur = "";
+        // skip empty last line
+        if (row.length > 1 || row[0].trim() !== "") out.push(row);
+        row = [];
+        i++;
+        continue;
+      }
+
+      cur += c;
+      i++;
     }
-    row.push(field); if(row.some(v=>v!=="")) rows.push(row);
-    return rows;
-  }
-  function cleanHeader(h){ return norm(h).replace(/^\uFEFF/,"").replace(/\uFEFF/g,"").replace(/\s+/g," "); }
-  function rowsToObjects(csvText){
-    const raw=parseCSV(csvText);
-    const headers=(raw.shift()||[]).map(cleanHeader);
-    return raw.map(r=>{
-      const o={}; headers.forEach((h,i)=>o[h]=r[i]??""); return o;
-    });
-  }
-  function pick(obj, name){
-    const want=name.toLowerCase();
-    for(const k of Object.keys(obj)) if(k.toLowerCase()===want) return obj[k];
-    return "";
-  }
-  function rowFromObj(r){
-    return {
-      Category: pick(r,"Category"),
-      Subcategory: pick(r,"Subcategory"),
-      "Request Type": pick(r,"Request Type"),
-      Title: pick(r,"Title"),
-      Description: pick(r,"Description"),
-      Platform: pick(r,"Platform"),
-      URL: pick(r,"URL"),
-      Contact: pick(r,"Contact"),
-      Notes: pick(r,"Notes")
-    };
-  }
-  function buildBlob(r){
-    const raw=[r.Category,r.Subcategory,r["Request Type"],r.Title,r.Description,r.Platform,r.URL,r.Contact,r.Notes]
-      .map(norm).join(" | ");
-    return { rawLower: raw.toLowerCase(), key: normKey(raw) };
-  }
-  function score(qKey, blobKey, blobRawLower, qLower){
-    const pos = blobKey.indexOf(qKey);
-    if(pos === -1) return -1;
-    let s = Math.max(0, 500 - pos);
-    if(pos === 0) s += 250;
-    s += Math.min(200, qKey.length * 8);
-    if(blobRawLower.includes(qLower)) s += 60;
-    return s;
+    row.push(cur);
+    if (row.length > 1 || row[0].trim() !== "") out.push(row);
+    return out;
   }
 
-  let rows=[], idx=[];
+  function normalize(s) {
+    return (s ?? "")
+      .toString()
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/\p{Diacritic}/gu, "");
+  }
 
-  function renderResults(q){
-    const query=norm(q), qKey=normKey(query), qLower=query.toLowerCase();
+  function extractUrls(obj) {
+    const urls = [];
+    for (const k of Object.keys(obj)) {
+      const v = (obj[k] ?? "").toString();
+      const matches = v.match(/https?:\/\/[^\s)]+/gi) || [];
+      for (const m of matches) urls.push(m);
+      // also catch bare www.
+      const www = v.match(/\bwww\.[^\s)]+/gi) || [];
+      for (const w of www) urls.push("https://" + w);
+    }
+    // unique
+    return [...new Set(urls)];
+  }
 
-    if(!qKey){
-      elResultsWrap.innerHTML = `<div class="empty">Start typing to search the directory.</div>`;
-      elDetailWrap.innerHTML = ``;
+  function bestTitle(obj) {
+    // Prefer common “name/title/organization” columns if present
+    const preferred = ["name", "title", "organization", "org", "group", "resource", "contact", "description"];
+    for (const p of preferred) {
+      const key = headers.find(h => normalize(h) === p);
+      if (key && obj[key] && obj[key].trim()) return obj[key].trim();
+    }
+    // fallback: first non-empty cell
+    for (const h of headers) {
+      const v = (obj[h] ?? "").toString().trim();
+      if (v) return v;
+    }
+    return "Untitled entry";
+  }
+
+  function snippet(obj) {
+    // Make a short snippet from remaining fields
+    const parts = [];
+    for (const h of headers) {
+      const v = (obj[h] ?? "").toString().trim();
+      if (!v) continue;
+      parts.push(v);
+      if (parts.join(" • ").length > 160) break;
+    }
+    const s = parts.join(" • ");
+    return s.length > 180 ? s.slice(0, 177) + "…" : s;
+  }
+
+  function scoreMatch(obj, q) {
+    if (!q) return 0;
+    const hay = normalize(headers.map(h => `${h}: ${obj[h] ?? ""}`).join(" | "));
+    const terms = normalize(q).split(/\s+/).filter(Boolean);
+    let score = 0;
+    for (const t of terms) {
+      const idx = hay.indexOf(t);
+      if (idx >= 0) score += 10;
+    }
+    // small bonus if any url contains term
+    const urls = extractUrls(obj).join(" ");
+    const uhay = normalize(urls);
+    for (const t of terms) if (uhay.includes(t)) score += 3;
+    return score;
+  }
+
+  function renderList(q) {
+    elContent.innerHTML = "";
+    const query = q.trim();
+
+    if (!rows.length) {
+      elContent.innerHTML = `<div class="status">No data loaded.</div>`;
+      elMatchState.textContent = "0 matches";
       return;
     }
 
-    const matches=[];
-    for(const it of idx){
-      const s=score(qKey,it.blobKey,it.blobRawLower,qLower);
-      if(s>=0) matches.push({idx:it.idx,score:s});
-    }
-    matches.sort((a,b)=>b.score-a.score);
-    const top=matches.slice(0,30);
-
-    if(top.length===0){
-      elResultsWrap.innerHTML = `<div class="empty">No matches for <strong>${escapeHtml(query)}</strong>.</div>`;
-      elDetailWrap.innerHTML = ``;
+    if (!query) {
+      elContent.innerHTML = `<div class="empty">Start typing to search.</div>`;
+      elMatchState.textContent = "0 matches";
+      postHeight();
       return;
     }
 
-    elResultsWrap.innerHTML = `
-      <div class="results" role="listbox" aria-label="Search results">
-        ${top.map(m=>{
-          const r=rows[m.idx];
-          const pills=[
-            r.Category && `<span class="pill">${escapeHtml(r.Category)}</span>`,
-            r.Subcategory && `<span class="pill">${escapeHtml(r.Subcategory)}</span>`,
-            r["Request Type"] && `<span class="pill red">${escapeHtml(r["Request Type"])}</span>`,
-            r.Platform && `<span class="pill">${escapeHtml(r.Platform)}</span>`
-          ].filter(Boolean).join("");
-          return `
-            <div class="row" role="option" tabindex="0" data-idx="${m.idx}">
-              <div class="left">
-                <p class="title">${escapeHtml(norm(r.Title)||"Untitled")}</p>
-                <div class="meta">${pills}</div>
-              </div>
-              <div style="font-size:11px;opacity:.6;white-space:nowrap;margin-top:2px;">${m.score}</div>
-            </div>`;
-        }).join("")}
-      </div>
-      <div class="hint" style="margin-top:10px;">Showing top ${top.length} matches. Click one to view details.</div>
-    `;
+    const scored = rows
+      .map(r => ({ r, s: scoreMatch(r, query) }))
+      .filter(x => x.s > 0)
+      .sort((a,b) => b.s - a.s)
+      .slice(0, 60);
 
-    elResultsWrap.querySelectorAll(".row").forEach(el=>{
-      const i=parseInt(el.dataset.idx,10);
-      el.addEventListener("click",()=>openDetail(i));
-      el.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openDetail(i); }});
-    });
-  }
+    elMatchState.textContent = `${scored.length} matches`;
 
-  function openDetail(i){
-    const r=rows[i], url=norm(r.URL);
-    const urlHtml = url
-      ? `<a class="link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`
-      : `<span style="opacity:.7;">—</span>`;
+    if (!scored.length) {
+      elContent.innerHTML = `<div class="empty">No matches for “${escapeHtml(query)}”. Try fewer words.</div>`;
+      postHeight();
+      return;
+    }
 
-    const kv=[
-      ["Category", r.Category],
-      ["Subcategory", r.Subcategory],
-      ["Request Type", r["Request Type"]],
-      ["Platform", r.Platform],
-      ["Description", r.Description],
-      ["Contact", r.Contact],
-      ["Notes", r.Notes],
-      ["URL", urlHtml]
-    ];
+    for (const { r } of scored) {
+      const t = bestTitle(r);
+      const sn = snippet(r);
+      const urls = extractUrls(r);
+      const tag = urls.length ? "Link" : "Details";
 
-    elDetailWrap.innerHTML=`
-      <div class="detail">
-        <div class="detailHead">
-          <div>
-            <p class="detailTitle">${escapeHtml(norm(r.Title)||"Untitled")}</p>
-            <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-              ${r.Category?`<span class="pill">${escapeHtml(r.Category)}</span>`:""}
-              ${r.Subcategory?`<span class="pill">${escapeHtml(r.Subcategory)}</span>`:""}
-              ${r["Request Type"]?`<span class="pill red">${escapeHtml(r["Request Type"])}</span>`:""}
-              ${r.Platform?`<span class="pill">${escapeHtml(r.Platform)}</span>`:""}
-            </div>
-          </div>
-          <div class="detailActions">
-            ${url?`<a class="btn" href="${escapeHtml(url)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;">Open</a>`:""}
-            <button id="closeDetail" class="btn secondary" type="button">Close</button>
-          </div>
+      const div = document.createElement("div");
+      div.className = "row";
+      div.innerHTML = `
+        <div class="r-main">
+          <p class="r-title">${escapeHtml(t)}</p>
+          <p class="r-snippet">${escapeHtml(sn)}</p>
         </div>
+        <div class="r-right">
+          <span class="tag">${tag}</span>
+        </div>
+      `;
+      div.addEventListener("click", () => {
+        if (urls.length) {
+          window.open(urls[0], "_blank", "noopener,noreferrer");
+        } else {
+          openModal(r);
+        }
+      });
+      elContent.appendChild(div);
+    }
+
+    postHeight();
+  }
+
+  function openModal(obj) {
+    modalTitle.textContent = bestTitle(obj);
+    const urls = extractUrls(obj);
+
+    const blocks = [];
+    if (urls.length) {
+      blocks.push(`<div class="kv"><p class="k">Links</p><p class="v links">${
+        urls.map(u => `<a href="${escapeAttr(u)}" target="_blank" rel="noopener noreferrer">${escapeHtml(u)}</a>`).join("")
+      }</p></div>`);
+    }
+
+    for (const h of headers) {
+      const v = (obj[h] ?? "").toString().trim();
+      if (!v) continue;
+      blocks.push(`
         <div class="kv">
-          ${kv.map(([k,v])=>{
-            const val = (k==="URL")
-              ? v
-              : (escapeHtml(norm(v)) || `<span style="opacity:.7;">—</span>`);
-            return `<div class="k">${escapeHtml(k)}</div><div class="v">${val}</div>`;
-          }).join("")}
+          <p class="k">${escapeHtml(h)}</p>
+          <p class="v">${escapeHtml(v)}</p>
         </div>
-      </div>`;
+      `);
+    }
 
-    document.getElementById("closeDetail").addEventListener("click",()=>{ elDetailWrap.innerHTML=""; });
+    modalBody.innerHTML = blocks.join("") || `<div class="kv"><p class="v">No details available.</p></div>`;
+    backdrop.style.display = "flex";
   }
 
-  async function load(){
-    clearErr();
-    setStatus("Loading…");
-    elQ.disabled=true;
-    elResultsWrap.innerHTML=`<div class="empty">Loading directory data…</div>`;
-    elDetailWrap.innerHTML=``;
+  function closeModal() {
+    backdrop.style.display = "none";
+    modalBody.innerHTML = "";
+  }
 
-    try{
-      const res = await fetch(CSV_URL, { cache:"no-store" });
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  function escapeHtml(s) {
+    return (s ?? "").toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+  function escapeAttr(s){ return escapeHtml(s).replaceAll('"', "&quot;"); }
+
+  // --- iframe auto-height helper (optional but nice) ---
+  function postHeight() {
+    const h = document.documentElement.scrollHeight;
+    window.parent?.postMessage({ type: "mutualAidHeight", height: h }, "*");
+  }
+  window.addEventListener("load", postHeight);
+
+  // Debounce input
+  let tmr = null;
+  elQ.addEventListener("input", () => {
+    clearTimeout(tmr);
+    tmr = setTimeout(() => renderList(elQ.value), 120);
+  });
+
+  elClearBtn.addEventListener("click", () => {
+    elQ.value = "";
+    elQ.focus();
+    renderList("");
+  });
+
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
+  closeBtn.addEventListener("click", closeModal);
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+  async function load() {
+    try {
+      elLoadState.textContent = "Loading…";
+      elStatus.textContent = "Fetching the latest directory data…";
+
+      const res = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error("Fetch failed: " + res.status);
       const text = await res.text();
 
-      const objs = rowsToObjects(text);
-      rows = objs.map(rowFromObj);
+      const table = parseCSV(text);
+      headers = (table[0] || []).map(h => (h ?? "").toString().trim()).filter(Boolean);
+      const data = table.slice(1);
 
-      if(!rows.some(r=>norm(r.Title) || norm(r.URL) || norm(r.Description))){
-        throw new Error("CSV loaded but expected columns are empty. Check sheet headers match: Title, URL, Platform, etc.");
-      }
+      rows = data
+        .filter(r => r.some(cell => (cell ?? "").toString().trim() !== ""))
+        .map(r => {
+          const obj = {};
+          for (let i = 0; i < headers.length; i++) obj[headers[i]] = (r[i] ?? "").toString();
+          return obj;
+        });
 
-      idx = rows.map((r, i)=>{ const b=buildBlob(r); return { idx:i, blobKey:b.key, blobRawLower:b.rawLower }; });
+      elLoadState.textContent = "Ready";
+      elCountState.textContent = `${rows.length} items`;
+      elStatus.remove();
 
-      setStatus(`Ready • ${rows.length} items`);
-      elQ.disabled=false;
-      elQ.placeholder='Search "gofundme", "facebook", a name, "wishlist", etc.';
-      renderResults("");
-    } catch(e){
-      setStatus("Error");
-      showErr("Couldn’t load data from Google Sheets.\n\nDetails: " + (e?.message||String(e)));
-      elResultsWrap.innerHTML=`<div class="empty">Data not available.</div>`;
+      renderList(elQ.value);
+      postHeight();
+    } catch (err) {
+      elLoadState.textContent = "Error";
+      elContent.innerHTML = `<div class="status">Couldn’t load the spreadsheet right now. Please try again later.</div>`;
+      console.error(err);
+      postHeight();
     }
   }
 
-  let t=null;
-  elQ.addEventListener("input",()=>{ clearTimeout(t); t=setTimeout(()=>renderResults(elQ.value),60); });
-  elClear.addEventListener("click",()=>{ if(elQ.disabled) return; elQ.value=""; renderResults(""); elQ.focus(); });
-
   load();
-})();
 </script>
 </body>
 </html>
