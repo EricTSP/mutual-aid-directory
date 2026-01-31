@@ -12,6 +12,7 @@
     .header { padding: 18px 18px 10px; border-bottom:1px solid var(--line); }
     .title { font-size: 22px; font-weight: 800; margin:0; }
     .sub { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+
     .controls { padding: 14px 18px; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--line); flex-wrap:wrap;}
     input[type="search"]{
       flex: 1 1 420px;
@@ -30,8 +31,10 @@
       cursor:pointer;
     }
     button:hover{ background:#fafafa; }
+
     .meta { padding: 10px 18px 0; color: var(--muted); font-size: 13px; display:flex; gap:12px; flex-wrap:wrap;}
     .pill { background: var(--pill); border:1px solid var(--line); padding:6px 10px; border-radius: 999px; }
+
     .list { padding: 10px 0; }
     .row {
       padding: 12px 18px;
@@ -49,6 +52,7 @@
     .r-snippet { margin:6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
     .r-right { flex: 0 0 auto; color: var(--muted); font-size: 12px; display:flex; align-items:center; gap:8px; }
     .tag { border:1px solid var(--line); background: var(--pill); padding:4px 8px; border-radius: 999px; white-space:nowrap; }
+
     .status { padding: 14px 18px; color: var(--muted); font-size: 14px; }
     .empty { padding: 22px 18px; color: var(--muted); font-size: 14px; }
 
@@ -74,6 +78,9 @@
     .k { font-size: 12px; color: var(--muted); margin:0 0 4px; }
     .v { margin:0; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
     .links a { display:inline-block; margin: 6px 8px 0 0; }
+
+    /* Small note under controls */
+    .hint { padding: 0 18px 10px; color: var(--muted); font-size: 12px; }
   </style>
 </head>
 <body>
@@ -89,6 +96,7 @@
         <button id="clearBtn" type="button">Clear</button>
         <button id="refreshBtn" type="button" title="Reload latest data">Refresh</button>
       </div>
+      <div class="hint">Tip: click any result to open details and links.</div>
 
       <div class="meta">
         <span class="pill" id="loadState">Loading…</span>
@@ -118,23 +126,25 @@
   </div>
 
 <script>
-  /**
-   * DATA SOURCE
-   * Option 1 (current): Published Google Sheet as CSV (updates show up automatically when the sheet changes)
-   * Option 2 (manual publish): Use a repo file, e.g. "./data/directory.csv" and you replace it when you want
-   */
+  /********************************************************************
+   * CONFIG
+   ********************************************************************/
+  // Published Google Sheet CSV URL (what you already use).
+  // IMPORTANT: This must be a published-to-web CSV endpoint (or otherwise publicly readable).
   const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRjJ-IVdaW-RCw_YDDbX3nM0iH6weKVWJFw_OX1C24WM9fyPbJYM2NjXGxevIdG6jtx6rpB2xK6tqo/pub?gid=625164440&single=true&output=csv";
-  // const CSV_URL = "./data/directory.csv";
 
-  /**
-   * IFRAME HEIGHT MESSAGING
-   * Restrict which parent origins can receive the postMessage.
-   * Add any other domains you embed this into.
-   */
+  // When embedded, only postMessage to these parent origins.
+  // Add more if you embed elsewhere.
   const ALLOWED_PARENT_ORIGINS = new Set([
     "https://idaho50501.com"
   ]);
 
+  // Max results shown
+  const MAX_RESULTS = 60;
+
+  /********************************************************************
+   * DOM
+   ********************************************************************/
   const elQ = document.getElementById("q");
   const elContent = document.getElementById("content");
   const elStatus = document.getElementById("status");
@@ -151,12 +161,14 @@
   const modalTitle = document.getElementById("modalTitle");
   const modalBody = document.getElementById("modalBody");
 
-  let rows = [];        // array of objects
-  let headers = [];     // header names
+  let rows = [];           // array of objects
+  let headers = [];        // header names (alignment-safe)
   let lastFetchedAt = null;
   let lastModalUrls = [];
 
-  // ----- CSV parsing (handles quoted commas/newlines) -----
+  /********************************************************************
+   * CSV PARSER (handles quoted commas/newlines)
+   ********************************************************************/
   function parseCSV(text) {
     const out = [];
     let row = [];
@@ -181,7 +193,6 @@
       if (!inQuotes && (c === "\n" || c === "\r")) {
         if (c === "\r" && text[i + 1] === "\n") i++; // Windows CRLF
         row.push(cur); cur = "";
-        // skip empty last line
         if (row.length > 1 || row[0].trim() !== "") out.push(row);
         row = [];
         i++;
@@ -192,12 +203,14 @@
       i++;
     }
 
-    // final cell
     row.push(cur);
     if (row.length > 1 || row[0].trim() !== "") out.push(row);
     return out;
   }
 
+  /********************************************************************
+   * HELPERS
+   ********************************************************************/
   function normalize(s) {
     return (s ?? "")
       .toString()
@@ -205,6 +218,16 @@
       .normalize("NFKD")
       .replace(/\p{Diacritic}/gu, "");
   }
+
+  function escapeHtml(s) {
+    return (s ?? "").toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+  function escapeAttr(s){ return escapeHtml(s).replaceAll('"', "&quot;"); }
 
   function extractUrls(obj) {
     const urls = [];
@@ -243,24 +266,54 @@
     return s.length > 180 ? s.slice(0, 177) + "…" : s;
   }
 
+  // Score: each term matched anywhere in the flattened row is worth points.
   function scoreMatch(obj, q) {
     if (!q) return 0;
-    const hay = normalize(headers.map(h => `${h}: ${obj[h] ?? ""}`).join(" | "));
     const terms = normalize(q).split(/\s+/).filter(Boolean);
+    if (!terms.length) return 0;
+
+    const hay = normalize(headers.map(h => `${h}: ${obj[h] ?? ""}`).join(" | "));
     let score = 0;
+
     for (const t of terms) {
-      const idx = hay.indexOf(t);
-      if (idx >= 0) score += 10;
+      if (!t) continue;
+      if (hay.includes(t)) score += 10;
     }
-    const urls = extractUrls(obj).join(" ");
-    const uhay = normalize(urls);
-    for (const t of terms) if (uhay.includes(t)) score += 3;
+
+    // small bonus if any URL contains the term
+    const uhay = normalize(extractUrls(obj).join(" "));
+    for (const t of terms) if (t && uhay.includes(t)) score += 3;
+
     return score;
   }
 
+  /********************************************************************
+   * IFRAME AUTO-HEIGHT (safe)
+   ********************************************************************/
+  function getParentOrigin() {
+    try {
+      if (!document.referrer) return null;
+      return new URL(document.referrer).origin;
+    } catch {
+      return null;
+    }
+  }
+
+  function postHeight() {
+    const h = document.documentElement.scrollHeight;
+    const parentOrigin = getParentOrigin();
+    if (parentOrigin && ALLOWED_PARENT_ORIGINS.has(parentOrigin)) {
+      window.parent?.postMessage({ type: "mutualAidHeight", height: h }, parentOrigin);
+    }
+  }
+  window.addEventListener("load", postHeight);
+
+  /********************************************************************
+   * UI RENDER
+   ********************************************************************/
   function renderList(q) {
     elContent.innerHTML = "";
-    const query = q.trim();
+    const query = (q ?? "").trim();
 
     if (!rows.length) {
       elContent.innerHTML = `<div class="status">No data loaded.</div>`;
@@ -280,7 +333,7 @@
       .map(r => ({ r, s: scoreMatch(r, query) }))
       .filter(x => x.s > 0)
       .sort((a,b) => b.s - a.s)
-      .slice(0, 60);
+      .slice(0, MAX_RESULTS);
 
     elMatchState.textContent = `${scored.length} matches`;
 
@@ -311,7 +364,6 @@
       `;
 
       const open = () => openModal(r);
-
       div.addEventListener("click", open);
       div.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
@@ -360,38 +412,9 @@
     postHeight();
   }
 
-  function escapeHtml(s) {
-    return (s ?? "").toString()
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-  function escapeAttr(s){ return escapeHtml(s).replaceAll('"', "&quot;"); }
-
-  // --- iframe auto-height helper (safer) ---
-  function getParentOrigin() {
-    try {
-      // When embedded, document.referrer is usually the parent URL
-      if (!document.referrer) return null;
-      const o = new URL(document.referrer).origin;
-      return o;
-    } catch {
-      return null;
-    }
-  }
-
-  function postHeight() {
-    const h = document.documentElement.scrollHeight;
-    const parentOrigin = getParentOrigin();
-    if (parentOrigin && ALLOWED_PARENT_ORIGINS.has(parentOrigin)) {
-      window.parent?.postMessage({ type: "mutualAidHeight", height: h }, parentOrigin);
-    }
-  }
-  window.addEventListener("load", postHeight);
-
-  // Debounce input
+  /********************************************************************
+   * EVENTS
+   ********************************************************************/
   let tmr = null;
   elQ.addEventListener("input", () => {
     clearTimeout(tmr);
@@ -415,9 +438,31 @@
 
   function setUpdatedPill(date) {
     if (!date) { elUpdatedState.textContent = "Last updated: —"; return; }
-    // Friendly local timestamp
-    const s = date.toLocaleString(undefined, { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const s = date.toLocaleString(undefined, {
+      year: "numeric", month: "short", day: "2-digit",
+      hour: "2-digit", minute: "2-digit"
+    });
     elUpdatedState.textContent = `Last updated: ${s}`;
+  }
+
+  /********************************************************************
+   * LOAD DATA (IMPORTANT FIX: alignment-safe headers)
+   ********************************************************************/
+  function buildHeadersAlignmentSafe(headerRow) {
+    // Keep column alignment even if some headers are blank,
+    // and make duplicates unique so values don't overwrite each other.
+    const seen = new Map();
+    return (headerRow || []).map((h, idx) => {
+      let name = (h ?? "").toString().trim();
+      if (!name) name = `Column ${idx + 1}`;
+
+      const key = name.toLowerCase();
+      const n = (seen.get(key) ?? 0) + 1;
+      seen.set(key, n);
+      if (n > 1) name = `${name} (${n})`;
+
+      return name;
+    });
   }
 
   async function load(isManualRefresh=false) {
@@ -425,22 +470,25 @@
       elLoadState.textContent = isManualRefresh ? "Refreshing…" : "Loading…";
       if (elStatus) elStatus.textContent = "Fetching the latest directory data…";
 
-      // Cache buster to reduce stale CSV issues
       const cacheBust = (CSV_URL.includes("?") ? "&" : "?") + "_=" + Date.now();
-
       const res = await fetch(CSV_URL + cacheBust, { cache: "no-store" });
       if (!res.ok) throw new Error("Fetch failed: " + res.status);
-      const text = await res.text();
 
+      const text = await res.text();
       const table = parseCSV(text);
-      headers = (table[0] || []).map(h => (h ?? "").toString().trim()).filter(Boolean);
+
+      const headerRow = table[0] || [];
+      headers = buildHeadersAlignmentSafe(headerRow);
+
       const data = table.slice(1);
 
       rows = data
         .filter(r => r.some(cell => (cell ?? "").toString().trim() !== ""))
         .map(r => {
           const obj = {};
-          for (let i = 0; i < headers.length; i++) obj[headers[i]] = (r[i] ?? "").toString();
+          for (let i = 0; i < headers.length; i++) {
+            obj[headers[i]] = (r[i] ?? "").toString();
+          }
           return obj;
         });
 
