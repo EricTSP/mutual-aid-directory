@@ -67,6 +67,7 @@
       display:flex; align-items:center; justify-content:space-between; gap:10px;
     }
     .modal-title { margin:0; font-weight: 800; font-size: 16px; }
+    .modal-actions { display:flex; align-items:center; gap:8px; }
     .modal-b { padding: 12px 16px; max-height: 70vh; overflow:auto; }
     .kv { border-top:1px solid var(--line); padding:10px 0; }
     .kv:first-child{ border-top:none; }
@@ -86,12 +87,14 @@
       <div class="controls">
         <input id="q" type="search" placeholder='Search: "facebook", "gofundme", "food assistance", "Meridian"...' autocomplete="off" />
         <button id="clearBtn" type="button">Clear</button>
+        <button id="refreshBtn" type="button" title="Reload latest data">Refresh</button>
       </div>
 
       <div class="meta">
         <span class="pill" id="loadState">Loading…</span>
         <span class="pill" id="countState">0 items</span>
         <span class="pill" id="matchState">0 matches</span>
+        <span class="pill" id="updatedState">Last updated: —</span>
       </div>
 
       <div id="content" class="list">
@@ -102,18 +105,35 @@
 
   <!-- Modal -->
   <div class="modal-backdrop" id="backdrop" role="dialog" aria-modal="true">
-    <div class="modal">
+    <div class="modal" role="document">
       <div class="modal-h">
         <p class="modal-title" id="modalTitle">Details</p>
-        <button id="closeBtn" type="button">Close</button>
+        <div class="modal-actions">
+          <button id="openFirstLinkBtn" type="button" style="display:none;">Open first link</button>
+          <button id="closeBtn" type="button">Close</button>
+        </div>
       </div>
       <div class="modal-b" id="modalBody"></div>
     </div>
   </div>
 
 <script>
-  // Your published CSV (cache-busted each load so updates show up)
+  /**
+   * DATA SOURCE
+   * Option 1 (current): Published Google Sheet as CSV (updates show up automatically when the sheet changes)
+   * Option 2 (manual publish): Use a repo file, e.g. "./data/directory.csv" and you replace it when you want
+   */
   const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRjJ-IVdaW-RCw_YDDbX3nM0iH6weKVWJFw_OX1C24WM9fyPbJYM2NjXGxevIdG6jtx6rpB2xK6tqo/pub?gid=625164440&single=true&output=csv";
+  // const CSV_URL = "./data/directory.csv";
+
+  /**
+   * IFRAME HEIGHT MESSAGING
+   * Restrict which parent origins can receive the postMessage.
+   * Add any other domains you embed this into.
+   */
+  const ALLOWED_PARENT_ORIGINS = new Set([
+    "https://idaho50501.com"
+  ]);
 
   const elQ = document.getElementById("q");
   const elContent = document.getElementById("content");
@@ -121,15 +141,20 @@
   const elLoadState = document.getElementById("loadState");
   const elCountState = document.getElementById("countState");
   const elMatchState = document.getElementById("matchState");
+  const elUpdatedState = document.getElementById("updatedState");
   const elClearBtn = document.getElementById("clearBtn");
+  const elRefreshBtn = document.getElementById("refreshBtn");
 
   const backdrop = document.getElementById("backdrop");
   const closeBtn = document.getElementById("closeBtn");
+  const openFirstLinkBtn = document.getElementById("openFirstLinkBtn");
   const modalTitle = document.getElementById("modalTitle");
   const modalBody = document.getElementById("modalBody");
 
   let rows = [];        // array of objects
   let headers = [];     // header names
+  let lastFetchedAt = null;
+  let lastModalUrls = [];
 
   // ----- CSV parsing (handles quoted commas/newlines) -----
   function parseCSV(text) {
@@ -149,12 +174,12 @@
         continue;
       }
 
-      if (!inQuotes && (c === ",")) {
+      if (!inQuotes && c === ",") {
         row.push(cur); cur = ""; i++; continue;
       }
 
       if (!inQuotes && (c === "\n" || c === "\r")) {
-        if (c === "\r" && text[i + 1] === "\n") i++;
+        if (c === "\r" && text[i + 1] === "\n") i++; // Windows CRLF
         row.push(cur); cur = "";
         // skip empty last line
         if (row.length > 1 || row[0].trim() !== "") out.push(row);
@@ -166,6 +191,8 @@
       cur += c;
       i++;
     }
+
+    // final cell
     row.push(cur);
     if (row.length > 1 || row[0].trim() !== "") out.push(row);
     return out;
@@ -184,23 +211,19 @@
     for (const k of Object.keys(obj)) {
       const v = (obj[k] ?? "").toString();
       const matches = v.match(/https?:\/\/[^\s)]+/gi) || [];
-      for (const m of matches) urls.push(m);
-      // also catch bare www.
+      for (const m of matches) urls.push(m.replace(/[.,;:]+$/g, "")); // trim trailing punctuation
       const www = v.match(/\bwww\.[^\s)]+/gi) || [];
-      for (const w of www) urls.push("https://" + w);
+      for (const w of www) urls.push(("https://" + w).replace(/[.,;:]+$/g, ""));
     }
-    // unique
     return [...new Set(urls)];
   }
 
   function bestTitle(obj) {
-    // Prefer common “name/title/organization” columns if present
     const preferred = ["name", "title", "organization", "org", "group", "resource", "contact", "description"];
     for (const p of preferred) {
       const key = headers.find(h => normalize(h) === p);
       if (key && obj[key] && obj[key].trim()) return obj[key].trim();
     }
-    // fallback: first non-empty cell
     for (const h of headers) {
       const v = (obj[h] ?? "").toString().trim();
       if (v) return v;
@@ -209,7 +232,6 @@
   }
 
   function snippet(obj) {
-    // Make a short snippet from remaining fields
     const parts = [];
     for (const h of headers) {
       const v = (obj[h] ?? "").toString().trim();
@@ -230,7 +252,6 @@
       const idx = hay.indexOf(t);
       if (idx >= 0) score += 10;
     }
-    // small bonus if any url contains term
     const urls = extractUrls(obj).join(" ");
     const uhay = normalize(urls);
     for (const t of terms) if (uhay.includes(t)) score += 3;
@@ -244,6 +265,7 @@
     if (!rows.length) {
       elContent.innerHTML = `<div class="status">No data loaded.</div>`;
       elMatchState.textContent = "0 matches";
+      postHeight();
       return;
     }
 
@@ -272,10 +294,12 @@
       const t = bestTitle(r);
       const sn = snippet(r);
       const urls = extractUrls(r);
-      const tag = urls.length ? "Link" : "Details";
+      const tag = urls.length ? "Links" : "Details";
 
       const div = document.createElement("div");
       div.className = "row";
+      div.setAttribute("role", "button");
+      div.setAttribute("tabindex", "0");
       div.innerHTML = `
         <div class="r-main">
           <p class="r-title">${escapeHtml(t)}</p>
@@ -285,13 +309,14 @@
           <span class="tag">${tag}</span>
         </div>
       `;
-      div.addEventListener("click", () => {
-        if (urls.length) {
-          window.open(urls[0], "_blank", "noopener,noreferrer");
-        } else {
-          openModal(r);
-        }
+
+      const open = () => openModal(r);
+
+      div.addEventListener("click", open);
+      div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
       });
+
       elContent.appendChild(div);
     }
 
@@ -301,6 +326,9 @@
   function openModal(obj) {
     modalTitle.textContent = bestTitle(obj);
     const urls = extractUrls(obj);
+    lastModalUrls = urls;
+
+    openFirstLinkBtn.style.display = urls.length ? "inline-block" : "none";
 
     const blocks = [];
     if (urls.length) {
@@ -322,11 +350,14 @@
 
     modalBody.innerHTML = blocks.join("") || `<div class="kv"><p class="v">No details available.</p></div>`;
     backdrop.style.display = "flex";
+    postHeight();
   }
 
   function closeModal() {
     backdrop.style.display = "none";
     modalBody.innerHTML = "";
+    lastModalUrls = [];
+    postHeight();
   }
 
   function escapeHtml(s) {
@@ -339,10 +370,24 @@
   }
   function escapeAttr(s){ return escapeHtml(s).replaceAll('"', "&quot;"); }
 
-  // --- iframe auto-height helper (optional but nice) ---
+  // --- iframe auto-height helper (safer) ---
+  function getParentOrigin() {
+    try {
+      // When embedded, document.referrer is usually the parent URL
+      if (!document.referrer) return null;
+      const o = new URL(document.referrer).origin;
+      return o;
+    } catch {
+      return null;
+    }
+  }
+
   function postHeight() {
     const h = document.documentElement.scrollHeight;
-    window.parent?.postMessage({ type: "mutualAidHeight", height: h }, "*");
+    const parentOrigin = getParentOrigin();
+    if (parentOrigin && ALLOWED_PARENT_ORIGINS.has(parentOrigin)) {
+      window.parent?.postMessage({ type: "mutualAidHeight", height: h }, parentOrigin);
+    }
   }
   window.addEventListener("load", postHeight);
 
@@ -359,16 +404,31 @@
     renderList("");
   });
 
+  elRefreshBtn.addEventListener("click", () => load(true));
+
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
   closeBtn.addEventListener("click", closeModal);
+  openFirstLinkBtn.addEventListener("click", () => {
+    if (lastModalUrls.length) window.open(lastModalUrls[0], "_blank", "noopener,noreferrer");
+  });
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
-  async function load() {
-    try {
-      elLoadState.textContent = "Loading…";
-      elStatus.textContent = "Fetching the latest directory data…";
+  function setUpdatedPill(date) {
+    if (!date) { elUpdatedState.textContent = "Last updated: —"; return; }
+    // Friendly local timestamp
+    const s = date.toLocaleString(undefined, { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    elUpdatedState.textContent = `Last updated: ${s}`;
+  }
 
-      const res = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+  async function load(isManualRefresh=false) {
+    try {
+      elLoadState.textContent = isManualRefresh ? "Refreshing…" : "Loading…";
+      if (elStatus) elStatus.textContent = "Fetching the latest directory data…";
+
+      // Cache buster to reduce stale CSV issues
+      const cacheBust = (CSV_URL.includes("?") ? "&" : "?") + "_=" + Date.now();
+
+      const res = await fetch(CSV_URL + cacheBust, { cache: "no-store" });
       if (!res.ok) throw new Error("Fetch failed: " + res.status);
       const text = await res.text();
 
@@ -386,7 +446,12 @@
 
       elLoadState.textContent = "Ready";
       elCountState.textContent = `${rows.length} items`;
-      elStatus.remove();
+
+      // Remove initial status banner once we’re good
+      if (elStatus && elStatus.parentNode) elStatus.parentNode.removeChild(elStatus);
+
+      lastFetchedAt = new Date();
+      setUpdatedPill(lastFetchedAt);
 
       renderList(elQ.value);
       postHeight();
